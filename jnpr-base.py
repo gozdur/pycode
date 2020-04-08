@@ -1,22 +1,33 @@
+import xlrd
 
-class juniper_device:
-    def __init__(self, model, hostname, ip, gateway, mgmt_junos, mac=None, software=None):
-        self.model = model
+
+class Juniper_device:
+    def __init__(self, hostname, model, ip, gateway, mgmt_junos, mac=None, software=None):
         self.hostname = hostname
+        self.model = model
         self.ip = ip
         self.gateway = gateway
         self.mgmt_junos = mgmt_junos
         self.mac = mac
         self.software = software
-    def load(data):
-        with exce
-        
 
 
 
-sw1 = juniper_device('qfx', 'vir-cp00-csw000', '192.168.1.1/24', '192.168.1.254', True, 'aa:bb:cc:dd:ee', '19.1R4')
+def host_list(file):
+    wb = xlrd.open_workbook(file)
+    sheet = wb.sheet_by_index(0)
+    hostname = []
+    for i in range(1, sheet.nrows):
+        hostname.append(sheet.cell_value(i, 0))
+    return hostname
 
 
-sw2 = juniper_device.load_devce_properties()
+dev = host_list('file.xlsx')
 
-print(sw2)
+devices = {}
+
+for item in dev:
+    devices.update({item: {}})
+
+
+print(devices)
