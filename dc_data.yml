@@ -1,0 +1,17 @@
+dc_alias: dev
+mgmt_subnet: 10.200.2.0/24
+
+rack_alias:
+    mgmt: mr00
+    compute: cp00
+    storage: sr00
+spine:
+    model: QFX52000
+    hight: 1
+    rack: mr00
+leaf:
+    model: QFX5120
+    hight: 1
+edge:
+    model: MX204
+    hight: 1

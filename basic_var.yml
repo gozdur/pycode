@@ -1,0 +1,11 @@
+management_data:
+    mgmt_subnet: 10.200.1.0/24
+    mgmt_interface:
+      qfx5120: em0
+      ex4300: me0
+      mx: fxp0
+      srx: fxp0
+
+
+
+

@@ -1,0 +1,363 @@
+set system login user ansible uid 2000
+set system login user ansible class super-user
+set system login user ansible authentication ssh-rsa {{ ansible_ssh_key}}
+set system login message "*****************************************************\n*    WARNING: THIS IS A PRIVATE NETWORK OF ATOS     *\n*  ACCESS IS PERMITTED FOR AUTHORISED PERSONS ONLY  *\n*****************************************************\n"
+set system root-authentication encrypted-password {{ root_pass}}
+set system host-name {{ hostname }}
+set system no-multicast-echo
+set system no-redirects
+set system no-ping-record-route
+set system no-ping-time-stamp
+set system management-instance
+set system internet-options tcp-drop-synfin-set
+set system ports console log-out-on-disconnect
+set system services ssh no-tcp-forwarding
+set system services ssh connection-limit 5
+set system services ssh rate-limit 20
+set system services netconf ssh
+set system syslog host {{ syslog }} any error
+set system syslog host {{ syslog }} explicit-priority
+set system syslog host {{ syslog }} structured-data
+set system syslog file messages any notice
+set system syslog file messages authorization info
+set system syslog file messages archive size 10m
+set system syslog file messages archive files 10
+set system syslog file interactive-commands interactive-commands any
+set system syslog file interactive-commands archive size 1m
+set system syslog file interactive-commands archive files 10
+set system syslog time-format year
+set system syslog time-format millisecond
+
+
+set system ntp server {{ ntp }} routing-instance mgmt_junos
+set interfaces fxp0 unit 0 family inet address {{ mgmt_ip }}
+
+# SNMP
+
+set snmp name dev-mr00-rou000
+set snmp location "Development-Unit0 FRA3 E-Shelter"
+set snmp contact "Atos Service Desk"
+set snmp v3 usm local-engine user bm4gcp-snmp-juniper-user authentication-sha authentication-key "$9$CWyepIEylK7db0BVwsgJZjHqmfzp0Bhyl5QRhcyW8ikqmQF69ABRh.PRhyrvMJGUHkP/Ctu0IF3yleK8Ldbs2JGiHmzF/24UHqmF3/Ct0EcvMX-ds7NVY"
+set snmp v3 usm local-engine user bm4gcp-snmp-juniper-user privacy-aes128 privacy-key "$9$vPbLX-Y2ajk.vWGDHqQzlKvM87NdbaGDrevLxNbwqmP569pu1rKMSyJGUi.mFn/CO1hcleM8EhgoGDkqfTz6p0cyleWLcS"
+set snmp v3 vacm security-to-group security-model usm security-name bm4gcp-snmp-juniper-user group view-all
+set snmp v3 vacm access group view-all default-context-prefix security-model any security-level privacy read-view READ-ALL
+set snmp v3 vacm access group view-all default-context-prefix security-model any security-level privacy notify-view READ-ALL
+set snmp v3 target-address SPECTRUM_1 address 10.200.1.11
+set snmp v3 target-address SPECTRUM_1 tag-list MY_TAG
+set snmp v3 target-address SPECTRUM_1 routing-instance mgmt_junos
+set snmp v3 target-address SPECTRUM_1 target-parameters MY_TARGET
+set snmp v3 target-address SPECTRUM_2 address 10.200.1.12
+set snmp v3 target-address SPECTRUM_2 tag-list MY_TAG
+set snmp v3 target-address SPECTRUM_2 routing-instance mgmt_junos
+set snmp v3 target-address SPECTRUM_2 target-parameters MY_TARGET
+set snmp v3 target-parameters MY_TARGET parameters message-processing-model v3
+set snmp v3 target-parameters MY_TARGET parameters security-model usm
+set snmp v3 target-parameters MY_TARGET parameters security-level privacy
+set snmp v3 target-parameters MY_TARGET parameters security-name bm4gcp-snmp-juniper-user
+set snmp v3 target-parameters MY_TARGET notify-filter VIEW-ALL
+set snmp v3 notify NOTIFY_ALL type trap
+set snmp v3 notify NOTIFY_ALL tag MY_TAG
+set snmp v3 notify-filter VIEW-ALL oid .1 include
+set snmp view READ-ALL oid .1 include
+set snmp view READ-ALL oid system include
+set snmp trap-options routing-instance mgmt_junos source-address 10.200.2.1
+set snmp routing-instance-access
+
+# CP_Protection
+
+set policy-options prefix-list router-ipv4 apply-path "interfaces <*> unit <*> family inet address <*>"
+set policy-options prefix-list bgp-neighbors apply-path "protocols bgp group <*> neighbor <*>"
+set policy-options prefix-list bgp-neighbors-routing-instance apply-path "routing-instances <*> protocols bgp group <*> neighbor <*>"
+set policy-options prefix-list ospf 224.0.0.5/32
+set policy-options prefix-list ospf 224.0.0.6/32
+set policy-options prefix-list rfc1918 10.0.0.0/8
+set policy-options prefix-list rfc1918 172.16.0.0/12
+set policy-options prefix-list rfc1918 192.168.0.0/16
+set policy-options prefix-list vrrp 224.0.0.18/32
+set policy-options prefix-list gcp-mgmt 10.11.128.0/24
+set policy-options prefix-list gcp-mgmt 10.11.129.0/24
+set policy-options prefix-list multicast-all-routers 224.0.0.2/32
+set policy-options prefix-list radius-servers 127.0.0.1/32
+set policy-options prefix-list tacas-servers 127.0.0.1/32
+set policy-options prefix-list ntp-server 10.11.128.8/32
+set policy-options prefix-list snmp-client-lists 10.200.1.11/32
+set policy-options prefix-list snmp-client-lists 10.200.1.12/32
+set policy-options prefix-list localhost 127.0.0.1/32
+set policy-options policy-statement LB then load-balance per-packet
+set policy-options policy-statement direct_only term 1 from protocol direct
+set policy-options policy-statement direct_only term 1 then accept
+set policy-options policy-statement direct_only then reject
+set firewall family inet filter accept-bgp apply-flags omit
+set firewall family inet filter accept-bgp term accept-bgp from source-prefix-list bgp-neighbors
+set firewall family inet filter accept-bgp term accept-bgp from source-prefix-list bgp-neighbors-routing-instance
+set firewall family inet filter accept-bgp term accept-bgp from protocol tcp
+set firewall family inet filter accept-bgp term accept-bgp from port bgp
+set firewall family inet filter accept-bgp term accept-bgp then accept
+set firewall family inet filter accept-ospf apply-flags omit
+set firewall family inet filter accept-ospf term accept-ospf from source-prefix-list router-ipv4
+set firewall family inet filter accept-ospf term accept-ospf from destination-prefix-list router-ipv4
+set firewall family inet filter accept-ospf term accept-ospf from destination-prefix-list ospf
+set firewall family inet filter accept-ospf term accept-ospf from protocol ospf
+set firewall family inet filter accept-ospf term accept-ospf then accept
+set firewall family inet filter accept-vrrp apply-flags omit
+set firewall family inet filter accept-vrrp term accept-vrrp from source-prefix-list router-ipv4
+set firewall family inet filter accept-vrrp term accept-vrrp from destination-prefix-list vrrp
+set firewall family inet filter accept-vrrp term accept-vrrp from protocol vrrp
+set firewall family inet filter accept-vrrp term accept-vrrp from protocol ah
+set firewall family inet filter accept-vrrp term accept-vrrp then accept
+set firewall family inet filter accept-ssh apply-flags omit
+set firewall family inet filter accept-ssh term accept-ssh from source-prefix-list gcp-mgmt
+set firewall family inet filter accept-ssh term accept-ssh from destination-prefix-list router-ipv4
+set firewall family inet filter accept-ssh term accept-ssh from protocol tcp
+set firewall family inet filter accept-ssh term accept-ssh from destination-port ssh
+set firewall family inet filter accept-ssh term accept-ssh from destination-port 830
+set firewall family inet filter accept-ssh term accept-ssh then policer management-5m
+set firewall family inet filter accept-ssh term accept-ssh then accept
+set firewall family inet filter accept-snmp apply-flags omit
+set firewall family inet filter accept-snmp term accept-snmp from source-prefix-list snmp-client-lists
+set firewall family inet filter accept-snmp term accept-snmp from destination-prefix-list router-ipv4
+set firewall family inet filter accept-snmp term accept-snmp from protocol udp
+set firewall family inet filter accept-snmp term accept-snmp from destination-port snmp
+set firewall family inet filter accept-snmp term accept-snmp then policer management-5m
+set firewall family inet filter accept-snmp term accept-snmp then accept
+set firewall family inet filter accept-ntp apply-flags omit
+set firewall family inet filter accept-ntp term accept-ntp from source-prefix-list ntp-server
+set firewall family inet filter accept-ntp term accept-ntp from destination-prefix-list router-ipv4
+set firewall family inet filter accept-ntp term accept-ntp from protocol udp
+set firewall family inet filter accept-ntp term accept-ntp from port ntp
+set firewall family inet filter accept-ntp term accept-ntp then policer management-1m
+set firewall family inet filter accept-ntp term accept-ntp then accept
+set firewall family inet filter accept-traceroute apply-flags omit
+set firewall family inet filter accept-traceroute term accept-traceroute-udp from destination-prefix-list rfc1918
+set firewall family inet filter accept-traceroute term accept-traceroute-udp from protocol udp
+set firewall family inet filter accept-traceroute term accept-traceroute-udp from ttl 1
+set firewall family inet filter accept-traceroute term accept-traceroute-udp from destination-port 33435-33450
+set firewall family inet filter accept-traceroute term accept-traceroute-udp then policer management-1m
+set firewall family inet filter accept-traceroute term accept-traceroute-udp then accept
+set firewall family inet filter accept-traceroute term accept-traceroute-icmp from destination-prefix-list rfc1918
+set firewall family inet filter accept-traceroute term accept-traceroute-icmp from protocol icmp
+set firewall family inet filter accept-traceroute term accept-traceroute-icmp from ttl 1
+set firewall family inet filter accept-traceroute term accept-traceroute-icmp from icmp-type echo-request
+set firewall family inet filter accept-traceroute term accept-traceroute-icmp from icmp-type timestamp
+set firewall family inet filter accept-traceroute term accept-traceroute-icmp from icmp-type time-exceeded
+set firewall family inet filter accept-traceroute term accept-traceroute-icmp then policer management-1m
+set firewall family inet filter accept-traceroute term accept-traceroute-icmp then accept
+set firewall family inet filter accept-traceroute term accept-traceroute-tcp from destination-prefix-list rfc1918
+set firewall family inet filter accept-traceroute term accept-traceroute-tcp from protocol tcp
+set firewall family inet filter accept-traceroute term accept-traceroute-tcp from ttl 1
+set firewall family inet filter accept-traceroute term accept-traceroute-tcp then policer management-1m
+set firewall family inet filter accept-traceroute term accept-traceroute-tcp then accept
+set firewall family inet filter accept-icmp apply-flags omit
+set firewall family inet filter accept-icmp term no-icmp-fragments from is-fragment
+set firewall family inet filter accept-icmp term no-icmp-fragments from protocol icmp
+set firewall family inet filter accept-icmp term no-icmp-fragments then count no-icmp-fragments
+set firewall family inet filter accept-icmp term no-icmp-fragments then log
+set firewall family inet filter accept-icmp term no-icmp-fragments then discard
+set firewall family inet filter accept-icmp term accept-icmp from protocol icmp
+set firewall family inet filter accept-icmp term accept-icmp from ttl-except 1
+set firewall family inet filter accept-icmp term accept-icmp from icmp-type echo-reply
+set firewall family inet filter accept-icmp term accept-icmp from icmp-type echo-request
+set firewall family inet filter accept-icmp term accept-icmp from icmp-type time-exceeded
+set firewall family inet filter accept-icmp term accept-icmp from icmp-type unreachable
+set firewall family inet filter accept-icmp term accept-icmp from icmp-type source-quench
+set firewall family inet filter accept-icmp term accept-icmp from icmp-type router-advertisement
+set firewall family inet filter accept-icmp term accept-icmp from icmp-type parameter-problem
+set firewall family inet filter accept-icmp term accept-icmp then policer management-5m
+set firewall family inet filter accept-icmp term accept-icmp then count accept-icmp
+set firewall family inet filter accept-icmp term accept-icmp then accept
+set firewall family inet filter accept-bfd apply-flags omit
+set firewall family inet filter accept-bfd term accept-sh-bfd from source-prefix-list router-ipv4
+set firewall family inet filter accept-bfd term accept-sh-bfd from destination-prefix-list router-ipv4
+set firewall family inet filter accept-bfd term accept-sh-bfd from protocol udp
+set firewall family inet filter accept-bfd term accept-sh-bfd from source-port 49152-65535
+set firewall family inet filter accept-bfd term accept-sh-bfd from destination-port 3784-3785
+set firewall family inet filter accept-bfd term accept-sh-bfd then accept
+set firewall family inet filter accept-bfd term accept-mh-bfd from source-prefix-list router-ipv4
+set firewall family inet filter accept-bfd term accept-mh-bfd from destination-prefix-list router-ipv4
+set firewall family inet filter accept-bfd term accept-mh-bfd from protocol udp
+set firewall family inet filter accept-bfd term accept-mh-bfd from source-port 49152-65535
+set firewall family inet filter accept-bfd term accept-mh-bfd from destination-port 4784
+set firewall family inet filter accept-bfd term accept-mh-bfd then accept
+set firewall family inet filter accept-ldp apply-flags omit
+set firewall family inet filter accept-ldp term accept-ldp-discover from source-prefix-list router-ipv4
+set firewall family inet filter accept-ldp term accept-ldp-discover from destination-prefix-list multicast-all-routers
+set firewall family inet filter accept-ldp term accept-ldp-discover from protocol udp
+set firewall family inet filter accept-ldp term accept-ldp-discover from destination-port ldp
+set firewall family inet filter accept-ldp term accept-ldp-discover then accept
+set firewall family inet filter accept-ldp term accept-ldp-unicast from source-prefix-list rfc1918
+set firewall family inet filter accept-ldp term accept-ldp-unicast from destination-prefix-list router-ipv4
+set firewall family inet filter accept-ldp term accept-ldp-unicast from protocol tcp
+set firewall family inet filter accept-ldp term accept-ldp-unicast from port ldp
+set firewall family inet filter accept-ldp term accept-ldp-unicast then accept
+set firewall family inet filter accept-ldp term accept-tldp-discover from destination-prefix-list router-ipv4
+set firewall family inet filter accept-ldp term accept-tldp-discover from protocol udp
+set firewall family inet filter accept-ldp term accept-tldp-discover from destination-port ldp
+set firewall family inet filter accept-ldp term accept-tldp-discover then accept
+set firewall family inet filter accept-ldp term accept-ldp-igmp from source-prefix-list router-ipv4
+set firewall family inet filter accept-ldp term accept-ldp-igmp from destination-prefix-list multicast-all-routers
+set firewall family inet filter accept-ldp term accept-ldp-igmp from protocol igmp
+set firewall family inet filter accept-ldp term accept-ldp-igmp then accept
+set firewall family inet filter accept-ftp apply-flags omit
+set firewall family inet filter accept-ftp term accept-ftp from source-prefix-list rfc1918
+set firewall family inet filter accept-ftp term accept-ftp from destination-prefix-list router-ipv4
+set firewall family inet filter accept-ftp term accept-ftp from protocol tcp
+set firewall family inet filter accept-ftp term accept-ftp from port ftp
+set firewall family inet filter accept-ftp term accept-ftp from port ftp-data
+set firewall family inet filter accept-ftp term accept-ftp then policer management-5m
+set firewall family inet filter accept-ftp term accept-ftp then accept
+set firewall family inet filter accept-rsvp apply-flags omit
+set firewall family inet filter accept-rsvp term accept-rsvp from destination-prefix-list router-ipv4
+set firewall family inet filter accept-rsvp term accept-rsvp from protocol rsvp
+set firewall family inet filter accept-rsvp term accept-rsvp then accept
+set firewall family inet filter accept-radius apply-flags omit
+set firewall family inet filter accept-radius term accept-radius from source-prefix-list radius-servers
+set firewall family inet filter accept-radius term accept-radius from destination-prefix-list router-ipv4
+set firewall family inet filter accept-radius term accept-radius from protocol udp
+set firewall family inet filter accept-radius term accept-radius from source-port radacct
+set firewall family inet filter accept-radius term accept-radius from source-port radius
+set firewall family inet filter accept-radius term accept-radius from tcp-established
+set firewall family inet filter accept-radius term accept-radius then policer management-1m
+set firewall family inet filter accept-radius term accept-radius then accept
+set firewall family inet filter accept-tacas apply-flags omit
+set firewall family inet filter accept-tacas term accept-tacas from source-prefix-list tacas-servers
+set firewall family inet filter accept-tacas term accept-tacas from destination-prefix-list router-ipv4
+set firewall family inet filter accept-tacas term accept-tacas from protocol tcp
+set firewall family inet filter accept-tacas term accept-tacas from protocol udp
+set firewall family inet filter accept-tacas term accept-tacas from source-port tacacs
+set firewall family inet filter accept-tacas term accept-tacas from source-port tacacs-ds
+set firewall family inet filter accept-tacas term accept-tacas from tcp-established
+set firewall family inet filter accept-tacas term accept-tacas then policer management-1m
+set firewall family inet filter accept-tacas term accept-tacas then accept
+set firewall family inet filter accept-ldp-rsvp apply-flags omit
+set firewall family inet filter accept-ldp-rsvp term accept-ldp filter accept-ldp
+set firewall family inet filter accept-ldp-rsvp term accept-rsvp filter accept-rsvp
+set firewall family inet filter accept-igp apply-flags omit
+set firewall family inet filter accept-igp term accept-ospf filter accept-ospf
+set firewall family inet filter accept-common-services apply-flags omit
+set firewall family inet filter accept-common-services term accept-icmp filter accept-icmp
+set firewall family inet filter accept-common-services term accept-traceroute filter accept-traceroute
+set firewall family inet filter accept-common-services term accept-ssh filter accept-ssh
+set firewall family inet filter accept-common-services term accept-snmp filter accept-snmp
+set firewall family inet filter accept-common-services term accept-ntp filter accept-ntp
+set firewall family inet filter accept-common-services term accept-ftp filter accept-ftp
+set firewall family inet filter accept-remote-auth apply-flags omit
+set firewall family inet filter accept-remote-auth term accept-radius filter accept-radius
+set firewall family inet filter accept-remote-auth term accept-tacas filter accept-tacas
+set firewall family inet filter dhcp-client-accept term dhcp-client-accept from protocol udp
+set firewall family inet filter dhcp-client-accept term dhcp-client-accept from source-port 68
+set firewall family inet filter dhcp-client-accept term dhcp-client-accept from source-port 67
+set firewall family inet filter dhcp-client-accept term dhcp-client-accept from destination-port 67
+set firewall family inet filter dhcp-client-accept term dhcp-client-accept from destination-port 68
+set firewall family inet filter dhcp-client-accept term dhcp-client-accept then count dhcp-client-accept
+set firewall family inet filter dhcp-client-accept term dhcp-client-accept then accept
+set firewall family inet filter accept-established apply-flags omit
+set firewall family inet filter accept-established term accept-established-tcp-ssh from destination-prefix-list router-ipv4
+set firewall family inet filter accept-established term accept-established-tcp-ssh from source-port ssh
+set firewall family inet filter accept-established term accept-established-tcp-ssh from tcp-established
+set firewall family inet filter accept-established term accept-established-tcp-ssh then policer management-5m
+set firewall family inet filter accept-established term accept-established-tcp-ssh then accept
+set firewall family inet filter accept-established term accept-established-tcp-ftp from destination-prefix-list router-ipv4
+set firewall family inet filter accept-established term accept-established-tcp-ftp from source-port ftp
+set firewall family inet filter accept-established term accept-established-tcp-ftp from tcp-established
+set firewall family inet filter accept-established term accept-established-tcp-ftp then policer management-5m
+set firewall family inet filter accept-established term accept-established-tcp-ftp then accept
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data-syn from destination-prefix-list router-ipv4
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data-syn from source-port ftp-data
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data-syn from tcp-initial
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data-syn then policer management-5m
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data-syn then accept
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data from destination-prefix-list router-ipv4
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data from source-port ftp-data
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data from tcp-established
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data then policer management-5m
+set firewall family inet filter accept-established term accept-established-tcp-ftp-data then accept
+set firewall family inet filter accept-established term accept-established-udp-ephemeral from destination-prefix-list router-ipv4
+set firewall family inet filter accept-established term accept-established-udp-ephemeral from protocol udp
+set firewall family inet filter accept-established term accept-established-udp-ephemeral from destination-port 49152-65535
+set firewall family inet filter accept-established term accept-established-udp-ephemeral then policer management-5m
+set firewall family inet filter accept-established term accept-established-udp-ephemeral then accept
+set firewall family inet filter accept-all apply-flags omit
+set firewall family inet filter accept-all term accept-all-tcp from protocol tcp
+set firewall family inet filter accept-all term accept-all-tcp then count accept-all-tcp
+set firewall family inet filter accept-all term accept-all-tcp then log
+set firewall family inet filter accept-all term accept-all-tcp then syslog
+set firewall family inet filter accept-all term accept-all-tcp then accept
+set firewall family inet filter accept-all term accept-all-udp from protocol udp
+set firewall family inet filter accept-all term accept-all-udp then count accept-all-udp
+set firewall family inet filter accept-all term accept-all-udp then log
+set firewall family inet filter accept-all term accept-all-udp then syslog
+set firewall family inet filter accept-all term accept-all-udp then accept
+set firewall family inet filter accept-all term accept-all-igmp from protocol igmp
+set firewall family inet filter accept-all term accept-all-igmp then count accept-all-igmp
+set firewall family inet filter accept-all term accept-all-igmp then log
+set firewall family inet filter accept-all term accept-all-igmp then syslog
+set firewall family inet filter accept-all term accept-all-igmp then accept
+set firewall family inet filter accept-all term accept-icmp from protocol icmp
+set firewall family inet filter accept-all term accept-icmp then count accept-all-icmp
+set firewall family inet filter accept-all term accept-icmp then log
+set firewall family inet filter accept-all term accept-icmp then syslog
+set firewall family inet filter accept-all term accept-icmp then accept
+set firewall family inet filter accept-all term accept-all-unknown then count accept-all-unknown
+set firewall family inet filter accept-all term accept-all-unknown then log
+set firewall family inet filter accept-all term accept-all-unknown then syslog
+set firewall family inet filter accept-all term accept-all-unknown then accept
+set firewall family inet filter discard-all apply-flags omit
+set firewall family inet filter discard-all term discard-ip-options from ip-options any
+set firewall family inet filter discard-all term discard-ip-options then count discard-ip-options
+set firewall family inet filter discard-all term discard-ip-options then log
+set firewall family inet filter discard-all term discard-ip-options then syslog
+set firewall family inet filter discard-all term discard-ip-options then discard
+set firewall family inet filter discard-all term discard-TTL_1-unknown from ttl 1
+set firewall family inet filter discard-all term discard-TTL_1-unknown then count discard-all-TTL_1-unknown
+set firewall family inet filter discard-all term discard-TTL_1-unknown then log
+set firewall family inet filter discard-all term discard-TTL_1-unknown then syslog
+set firewall family inet filter discard-all term discard-TTL_1-unknown then discard
+set firewall family inet filter discard-all term discard-tcp from protocol tcp
+set firewall family inet filter discard-all term discard-tcp then count discard-tcp
+set firewall family inet filter discard-all term discard-tcp then log
+set firewall family inet filter discard-all term discard-tcp then syslog
+set firewall family inet filter discard-all term discard-tcp then discard
+set firewall family inet filter discard-all term discard-netbios from protocol udp
+set firewall family inet filter discard-all term discard-netbios from destination-port 137
+set firewall family inet filter discard-all term discard-netbios then count discard-netbios
+set firewall family inet filter discard-all term discard-netbios then log
+set firewall family inet filter discard-all term discard-netbios then syslog
+set firewall family inet filter discard-all term discard-netbios then discard
+set firewall family inet filter discard-all term discard-udp from protocol udp
+set firewall family inet filter discard-all term discard-udp then count discard-udp
+set firewall family inet filter discard-all term discard-udp then log
+set firewall family inet filter discard-all term discard-udp then syslog
+set firewall family inet filter discard-all term discard-udp then discard
+set firewall family inet filter discard-all term discard-icmp from protocol icmp
+set firewall family inet filter discard-all term discard-icmp then count discard-icmp
+set firewall family inet filter discard-all term discard-icmp then log
+set firewall family inet filter discard-all term discard-icmp then syslog
+set firewall family inet filter discard-all term discard-icmp then discard
+set firewall family inet filter discard-all term discard-unknown then count discard-unknown
+set firewall family inet filter discard-all term discard-unknown then log
+set firewall family inet filter discard-all term discard-unknown then syslog
+set firewall family inet filter discard-all term discard-unknown then discard
+
+
+set firewall policer management-5m if-exceeding bandwidth-limit 5m
+set firewall policer management-5m if-exceeding burst-size-limit 15k
+set firewall policer management-5m then discard
+set firewall policer management-1m if-exceeding bandwidth-limit 1m
+set firewall policer management-1m if-exceeding burst-size-limit 15k
+set firewall policer management-1m then discard
+
+# MGMT_Instance_Config
+
+set system management-instance
+set routing-instances mgmt_junos routing-options static route 0.0.0.0/0 next-hop 10.200.2.126
+
+set interfaces lo0 unit 0 family inet filter input-list accept-bfd
+set interfaces lo0 unit 0 family inet filter input-list accept-ldp-rsvp
+set interfaces lo0 unit 0 family inet filter input-list accept-igp
+set interfaces lo0 unit 0 family inet filter input-list accept-bgp
+set interfaces lo0 unit 0 family inet filter input-list accept-vrrp
+set interfaces lo0 unit 0 family inet filter input-list accept-common-services
+set interfaces lo0 unit 0 family inet filter input-list accept-remote-auth
+set interfaces lo0 unit 0 family inet filter input-list dhcp-client-accept
+set interfaces lo0 unit 0 family inet filter input-list accept-established
+set interfaces lo0 unit 0 family inet filter input-list discard-all
